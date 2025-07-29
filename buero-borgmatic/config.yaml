@@ -1,0 +1,30 @@
+location:
+  source_directories:
+    - /home/username
+    - /etc
+  repositories:
+    - borg-server:/srv/borg/repos/client1
+
+storage:
+  encryption_passphrase: "optional-if-needed"
+
+retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+
+consistency:
+  checks:
+    - repository
+    - archives
+  check_last: 3
+
+hooks:
+  before_backup:
+    - echo "Starting backup..."
+  after_backup:
+    - echo "Testing backup restore..."
+    - mkdir -p /tmp/borgmatic-restore-test
+    - borgmatic extract --archive latest --destination /tmp/borgmatic-restore-test --paths home/username/Documents etc/hostname
+    - if [ -d /tmp/borgmatic-restore-test/home/username/Documents ] && [ -f /tmp/borgmatic-restore-test/etc/hostname ]; then echo "Restore test successful."; else echo "Restore test failed."; fi
+    - rm -rf /tmp/borgmatic-restore-test
