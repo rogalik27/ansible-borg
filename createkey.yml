@@ -1,0 +1,34 @@
+- name: Gen Ssh
+  hosts: all
+  become: false
+  vars:
+    key_path: "~/.ssh/id_ed25519"
+  tasks:
+    - name: Check if SSH key exists
+      stat:
+        path: "{{ key_path }}"
+      register: ssh_key
+
+    - name: Generate SSH key if missing
+      shell: ssh-keygen -t ed25519 -f {{ key_path }} -N ""
+      when: not ssh_key.stat.exists
+
+    - name: Slurp public key
+      slurp:
+        src: "{{ key_path }}.pub"
+      register: pubkey
+
+    - name: Write public key to local file
+      copy:
+        content: "{{ pubkey['content'] | b64decode }}"
+        dest: "./borg_keys/{{ inventory_hostname }}.pub"
+        mode: '0600'
+        owner: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+        group: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+      delegate_to: localhost
+
+    - name: Write public key to local file
+      copy:
+        content: "{{ pubkey['content'] | b64decode }}"
+        dest: "./borg_keys/{{ inventory_hostname }}.pub"
+      delegate_to: localhost

@@ -1,0 +1,45 @@
+- name: Run borg backup
+  hosts: all
+  vars:
+    repo: "borguser@185.11.255.201:/srv/borg/repos"
+    source: "/home/debian/testdata/"
+  tasks:
+    - name: Ensure Borg is installed
+      apt:
+        name: borgbackup
+        state: present
+        update_cache: true
+      become: true
+    - name: Add Borg server to known_hosts
+      known_hosts:
+        name: 185.11.255.201
+        key: "{{ lookup('pipe', 'ssh-keyscan -H 185.11.255.201') }}"
+        path: ~/.ssh/known_hosts
+      become: true
+    - name: Ensure testdata directory exists
+      file:
+        path: /home/debian/testdata
+        state: directory
+        owner: debian
+        group: debian
+        mode: '0755'
+    - name: Create a 1GB file using fallocate
+      command: fallocate -l 2G /home/debian/testdata/testdata
+
+    - name: Init Borg repo
+      shell: borg init --encryption=none "{{ repo }}/client{{ borg_id }}"
+      async: 3600
+      poll: 1
+      ignore_errors: true
+      register: result
+
+    - name: Run Borg backup
+      shell: borg create --stats "{{ repo }}/client{{ borg_id }}::test_client{{ borg_id }}" "{{ source }}"
+      async: 3600
+      poll: 1
+      ignore_errors: true
+      register: borg_output
+
+    - name: Show stderr
+      debug:
+        msg: "{{ borg_output.stderr_lines }}"
